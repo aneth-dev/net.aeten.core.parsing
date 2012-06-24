@@ -19,7 +19,7 @@ import net.aeten.core.parsing.MarkupNode;
 import net.aeten.core.parsing.Parser;
 import net.aeten.core.parsing.ParsingData;
 import net.aeten.core.parsing.ParsingEvent;
-import net.aeten.core.service.Provider;
+import net.aeten.core.spi.Provider;
 
 /**
  * 
