@@ -42,50 +42,55 @@ public class XmlParser implements Parser<MarkupNode> {
 		}
 	}
 
+	@Override
 	public void parse(Reader reader, final Handler<ParsingData<MarkupNode>> handler) {
 		try {
 			SAXParser parser = SAXParserFactory.newInstance().newSAXParser();
-			
+
 			parser.parse(new InputSource(reader), new DefaultHandler() {
 				Tag currentTag = null;
+
 				@Override
 				public void startDocument() throws SAXException {
 					fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.DOCUMENT, null, null);
 				}
+
 				@Override
 				public void endDocument() throws SAXException {
 					fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.DOCUMENT, null, null);
 				}
+
 				@Override
 				public void startElement(String uri, String localName, String name, Attributes attributes) throws SAXException {
 					currentTag = new Tag(currentTag, name);
 					fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TAG, name, currentTag.parent);
-					if (attributes.getLength()>0) {
+					if (attributes.getLength() > 0) {
 						fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.MAP, null, currentTag);
 					}
-					for(int i = 0; i<attributes.getLength(); i++) {
+					for (int i = 0; i < attributes.getLength(); i++) {
 						fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TAG, attributes.getQName(i), currentTag);
 						fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TEXT, attributes.getValue(i), currentTag);
 						fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TEXT, attributes.getValue(i), currentTag);
 						fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TAG, attributes.getQName(i), currentTag);
 					}
-					if (attributes.getLength()>0) {
+					if (attributes.getLength() > 0) {
 						fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.MAP, null, currentTag);
 					}
 					fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.LIST, null, currentTag);
 				}
+
 				@Override
 				public void endElement(String uri, String localName, String name) throws SAXException {
 					fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.LIST, null, currentTag);
 					fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TAG, name, currentTag.parent);
 					currentTag = currentTag.parent;
 				}
+
 				@Override
 				public void characters(char[] ch, int start, int length) throws SAXException {
 					String text = new String(ch, start, length);
-					if (text.trim().length() == 0) {
+					if (text.trim().length() == 0)
 						return;
-					}
 					fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TEXT, text, currentTag);
 					fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TEXT, text, currentTag);
 				}
@@ -101,6 +106,7 @@ public class XmlParser implements Parser<MarkupNode> {
 		parser.parse(new BufferedReader(new FileReader(args[0])), new Handler<ParsingData<MarkupNode>>() {
 			private int level = 0;
 
+			@Override
 			public void handleEvent(ParsingData<MarkupNode> data) {
 
 				switch (data.getEvent()) {
@@ -128,6 +134,12 @@ public class XmlParser implements Parser<MarkupNode> {
 						this.print("« " + data.getValue() + ":");
 						currentTag.add(data.getValue());
 						break;
+					case COMMENT:
+						break;
+					case DOCUMENT:
+						break;
+					default:
+						break;
 					}
 					break;
 				case END_NODE:
@@ -151,6 +163,12 @@ public class XmlParser implements Parser<MarkupNode> {
 						this.println(currentTag.poll() + " »");
 						level--;
 						break;
+					case COMMENT:
+						break;
+					case DOCUMENT:
+						break;
+					default:
+						break;
 					}
 					break;
 				}
@@ -169,6 +187,7 @@ public class XmlParser implements Parser<MarkupNode> {
 		});
 	}
 
+	@Override
 	public String getIdentifier() {
 		return XmlParser.class.getName();
 	}
