@@ -2,10 +2,12 @@ package net.aeten.core.parsing.xml;
 
 import java.io.BufferedReader;
 import java.io.FileReader;
+import java.io.IOException;
 import java.io.Reader;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Queue;
+import javax.xml.parsers.ParserConfigurationException;
 
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
@@ -18,6 +20,7 @@ import net.aeten.core.parsing.MarkupNode;
 import net.aeten.core.parsing.Parser;
 import net.aeten.core.parsing.ParsingData;
 import net.aeten.core.parsing.ParsingEvent;
+import net.aeten.core.parsing.ParsingException;
 import net.aeten.core.spi.Provider;
 
 import org.xml.sax.Attributes;
@@ -43,7 +46,7 @@ public class XmlParser implements Parser<MarkupNode> {
 	}
 
 	@Override
-	public void parse(Reader reader, final Handler<ParsingData<MarkupNode>> handler) {
+	public void parse(Reader reader, final Handler<ParsingData<MarkupNode>> handler) throws ParsingException {
 		try {
 			SAXParser parser = SAXParserFactory.newInstance().newSAXParser();
 
@@ -95,8 +98,8 @@ public class XmlParser implements Parser<MarkupNode> {
 					fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TEXT, text, currentTag);
 				}
 			});
-		} catch (Exception exception) {
-			Logger.log(this, LogLevel.ERROR, exception);
+		} catch (ParserConfigurationException | SAXException | IOException exception) {
+			throw new ParsingException(exception);
 		}
 	}
 

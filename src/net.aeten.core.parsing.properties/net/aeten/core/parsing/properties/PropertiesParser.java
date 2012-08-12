@@ -19,6 +19,7 @@ import net.aeten.core.parsing.MarkupNode;
 import net.aeten.core.parsing.Parser;
 import net.aeten.core.parsing.ParsingData;
 import net.aeten.core.parsing.ParsingEvent;
+import net.aeten.core.parsing.ParsingException;
 import net.aeten.core.spi.Provider;
 
 /**
@@ -38,7 +39,8 @@ public class PropertiesParser implements Parser<MarkupNode> {
 		}
 	}
 
-	public void parse(Reader reader, Handler<ParsingData<MarkupNode>> handler) {
+	@Override
+	public void parse(Reader reader, Handler<ParsingData<MarkupNode>> handler) throws ParsingException {
 		Properties properties = new Properties();
 		Tag current = null;
 		try {

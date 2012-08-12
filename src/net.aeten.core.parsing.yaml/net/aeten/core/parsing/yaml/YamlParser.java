@@ -13,7 +13,12 @@ import net.aeten.core.Format;
 import net.aeten.core.event.Handler;
 import net.aeten.core.logging.LogLevel;
 import net.aeten.core.logging.Logger;
-import net.aeten.core.parsing.*;
+import net.aeten.core.parsing.AbstractParser;
+import net.aeten.core.parsing.MarkupNode;
+import net.aeten.core.parsing.Parser;
+import net.aeten.core.parsing.ParsingData;
+import net.aeten.core.parsing.ParsingEvent;
+import net.aeten.core.parsing.ParsingException;
 import net.aeten.core.spi.Provider;
 
 /**
@@ -25,10 +30,10 @@ import net.aeten.core.spi.Provider;
 public class YamlParser extends AbstractParser<MarkupNode> {
 
 	@Override
-	public void parse(Reader reader, Handler<ParsingData<MarkupNode>> handler) {
+	public void parse(Reader reader, Handler<ParsingData<MarkupNode>> handler) throws ParsingException {
 		BufferedReader bufferedReader = new BufferedReader(reader);
 		String line, indentation = null;
-		int currentLevel = 0, previousLevel = 0;
+		int currentLevel = 0, previousLevel;
 		Tag current = null;
 		this.fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.LIST, null, null);
 		try {
@@ -63,6 +68,9 @@ public class YamlParser extends AbstractParser<MarkupNode> {
 					value = line.substring(separatorIndex + 1).trim();
 				} else {
 					key = null;
+					if (line.charAt(0) != '-') {
+						throw new ParsingException("", line, 0);
+					}
 					value = line.substring(1).trim(); // List, starts with '-'
 				}
 				if (currentLevel > previousLevel) {
