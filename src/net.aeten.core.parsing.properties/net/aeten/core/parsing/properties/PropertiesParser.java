@@ -10,7 +10,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Properties;
 import java.util.Queue;
-
 import net.aeten.core.Format;
 import net.aeten.core.event.Handler;
 import net.aeten.core.logging.LogLevel;
@@ -23,7 +22,7 @@ import net.aeten.core.parsing.ParsingException;
 import net.aeten.core.spi.Provider;
 
 /**
- * 
+ *
  * @author Thomas Pérennou
  */
 @Provider(Parser.class)
