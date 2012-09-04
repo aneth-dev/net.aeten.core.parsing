@@ -1,14 +1,16 @@
 package net.aeten.core.parsing.yaml;
 
 import java.io.BufferedReader;
-import java.io.FileReader;
 import java.io.IOException;
 import java.io.Reader;
-import java.util.ArrayDeque;
-import java.util.Collections;
-import java.util.Queue;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+
 import net.aeten.core.Format;
 import net.aeten.core.event.Handler;
 import net.aeten.core.logging.LogLevel;
@@ -28,76 +30,159 @@ import net.aeten.core.spi.Provider;
 @Provider(Parser.class)
 @Format("yaml")
 public class YamlParser extends AbstractParser<MarkupNode> {
+	private static final Pattern TYPE_OR_REF_OR_ANCHOR_PATTERN = Pattern.compile("[!&*](\\p{Graph}+)(\\p{Blank})*([^#]*)(.*)");
+	private static final Pattern INDENTATION_PATTERN = Pattern.compile("^\\s+");
 
 	@Override
 	public void parse(Reader reader, Handler<ParsingData<MarkupNode>> handler) throws ParsingException {
 		BufferedReader bufferedReader = new BufferedReader(reader);
 		String line, indentation = null;
-		int currentLevel = 0, previousLevel;
+		int currentLevel = -1, previousLevel = -1;
 		Tag current = null;
-		this.fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.LIST, null, null);
+		boolean documentOpened = false, previousValueRaised = false, previousTypeRaised = false;
 		try {
-			while ((line = bufferedReader.readLine()) != null) {
+			LINE: while ((line = bufferedReader.readLine()) != null) {
 				String trimed = line.trim();
-				if ("".equals(trimed) || trimed.startsWith("#")) {
+				if ("".equals(trimed) || line.startsWith("#")) {
 					continue;
 				}
+				try {
 
-				previousLevel = currentLevel;
-				currentLevel = 0;
-				if ((indentation == null) && line.matches("^\\s.*")) {
-					Pattern pattern = Pattern.compile("^\\s+");
-					Matcher matcher = pattern.matcher(line);
-					matcher.find();
-					indentation = matcher.group();
-				}
-				if (indentation != null) {
-					while (line.startsWith(indentation)) {
-						currentLevel++;
-						line = line.substring(indentation.length());
-					}
-				}
-
-				line = trimed;
-
-				String key;
-				String value;
-				int separatorIndex = line.indexOf(':');
-				if (separatorIndex != -1) {
-					key = line.substring(0, separatorIndex).trim();
-					value = line.substring(separatorIndex + 1).trim();
-				} else {
-					key = null;
-					if (line.charAt(0) != '-') {
-						throw new ParsingException("", line, 0);
-					}
-					value = line.substring(1).trim(); // List, starts with '-'
-				}
-				if (currentLevel > previousLevel) {
-					this.fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.LIST, null, current);
-					current = new Tag(current, key);
-					this.fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TAG, current.name, current.parent);
-				} else if (currentLevel < previousLevel) {
-					Tag parent = current;
-					for (int i = previousLevel; i >= currentLevel; i--) {
-						this.fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TAG, parent.name, parent.parent);
-						if (currentLevel != i) {
-							this.fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.LIST, null, parent.parent);
+					if (line.startsWith("---")) {
+						if (documentOpened) {
+							closeDocument(handler, current, currentLevel);
 						}
-						parent = parent.parent;
+						fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.DOCUMENT, null, null);
+						trimed = trimed.substring(3).trim();
+						documentOpened = true;
+					} else if (line.startsWith("...")) {
+						closeDocument(handler, current, currentLevel);
+						trimed = trimed.substring(3);
+						documentOpened = false;
+						previousLevel = currentLevel;
+						currentLevel = -1;
+					} else {
+						previousLevel = currentLevel;
+						currentLevel = 0;
+						if ((indentation == null) && line.matches("^\\s.*")) {
+							Matcher matcher = INDENTATION_PATTERN.matcher(line);
+							matcher.find();
+							indentation = matcher.group();
+						}
+						if (indentation != null) {
+							while (line.startsWith(indentation)) {
+								currentLevel++;
+								line = line.substring(indentation.length());
+							}
+						}
 					}
-					current = new Tag((current == null) ? null : parent, key);
-					this.fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TAG, current.name, current.parent);
-				} else {
-					if (current != null) {
-						this.fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TAG, current.name, current.parent);
+
+					line = trimed;
+
+					String key;
+					String value;
+					MarkupNode enclosingType;
+					int separatorIndex = line.indexOf(':');
+					if (separatorIndex != -1) {
+						enclosingType = MarkupNode.MAP;
+						key = line.substring(0, separatorIndex).trim();
+						value = line.substring(separatorIndex + 1).trim();
+					} else {
+						key = null;
+						if (line.charAt(0) != '-') {
+							if (!line.startsWith("#") && !TYPE_OR_REF_OR_ANCHOR_PATTERN.matcher(line).matches()) throw new ParsingException("", line, 0);
+							value = line;
+							enclosingType = null;
+						} else {
+							enclosingType = MarkupNode.LIST;
+							value = line.substring(1).trim(); // List, starts with '-'
+							Matcher matcher = TYPE_OR_REF_OR_ANCHOR_PATTERN.matcher(value);
+							if (!matcher.matches() || !matcher.group(3).trim().isEmpty()) {
+								if (currentLevel < previousLevel) {
+									current = close(handler, current, previousLevel, currentLevel);
+									previousLevel = currentLevel;
+									enclosingType = null;
+								}
+								currentLevel++;
+							}
+						}
 					}
-					current = new Tag((current == null) ? null : current.parent, key);
-					this.fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TAG, current.name, current.parent);
-				}
-				if (!"".equals(value)) {
-					MarkupNode node;
-					switch (value.charAt(0)) {
+					if (!documentOpened) {
+						fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.DOCUMENT, null, null);
+						documentOpened = true;
+					}
+
+					if (currentLevel > previousLevel) {
+						if (enclosingType != null) {
+							if (current == null) {
+								current = new Tag(null, null);
+							}
+							if (current.childrenNodeType == null) {
+								current.childrenNodeType = enclosingType;
+							} else if (current.childrenNodeType != enclosingType) { throw new ParsingException("Find " + enclosingType + " element when " + current.childrenNodeType + " was expected", line, 0); }
+							if (current.childrenType == null) {
+								current.childrenType = (current.childrenNodeType == MarkupNode.MAP ? Map.class : List.class).getName();
+								fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TYPE, current.childrenType, current.parent);
+								fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TYPE, current.childrenType, current.parent);
+							}
+							fireEvent(handler, ParsingEvent.START_NODE, current.childrenNodeType, null, current);
+						}
+						current = new Tag(current, key);
+						if (key != null) {
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TAG, null, current.parent);
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TYPE, String.class.getName(), current);
+							fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TYPE, String.class.getName(), current);
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TEXT, key, current);
+							fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TEXT, key, current);
+						}
+					} else if (currentLevel < previousLevel) {
+						if (!previousValueRaised) {
+							if (!previousTypeRaised) {
+								fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TYPE, Void.class.getName(), current.parent);
+								fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TYPE, Void.class.getName(), current.parent);
+							}
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TEXT, "", current.parent);
+							fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TEXT, "", current.parent);
+						}
+						Tag parent = close(handler, current, previousLevel, currentLevel);
+						current = new Tag((current == null) ? null : parent, key);
+						if (current.name != null) {
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TAG, null, current.parent);
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TYPE, String.class.getName(), current);
+							fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TYPE, String.class.getName(), current);
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TEXT, key, current);
+							fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TEXT, key, current);
+						}
+					} else {
+						if (!previousValueRaised && current != null) {
+							if (!previousTypeRaised) {
+								fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TYPE, Void.class.getName(), current.parent);
+								fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TYPE, Void.class.getName(), current.parent);
+							}
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TEXT, "", current.parent);
+							fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TEXT, "", current.parent);
+						}
+						if (current != null && current.name != null) {
+							fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TAG, null, current.parent);
+						}
+						current = new Tag((current == null) ? null : current.parent, key);
+						if (current.name != null) {
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TAG, null, current.parent);
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TYPE, String.class.getName(), current);
+							fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TYPE, String.class.getName(), current);
+							fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TEXT, key, current);
+							fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TEXT, key, current);
+						}
+					}
+
+					previousValueRaised = previousTypeRaised = false;
+
+					if (value.startsWith("#")) {
+						continue;
+					}
+					if (!"".equals(value)) {
+						MarkupNode node;
+						switch (value.charAt(0)) {
 						case '!':
 							node = MarkupNode.TYPE;
 							break;
@@ -110,125 +195,128 @@ public class YamlParser extends AbstractParser<MarkupNode> {
 						default:
 							node = MarkupNode.TEXT;
 							break;
-					}
-					switch (node) {
+						}
+						Matcher matcher = TYPE_OR_REF_OR_ANCHOR_PATTERN.matcher(value);
+						switch (node) {
 						case TYPE:
 						case REFERENCE:
 						case ANCHOR:
-							Pattern pattern = Pattern.compile("[!&*](\\p{Graph}+)(\\p{Blank})*(.*)");
-							Matcher matcher = pattern.matcher(value);
-							if (!matcher.matches()) {
-								System.out.println(value);
-							}
+							if (!matcher.matches()) { throw new ParsingException("Node " + node + " error", value, 1); }
 							value = matcher.group(1);
-							this.fireEvent(handler, ParsingEvent.START_NODE, node, value, current.parent);
-							this.fireEvent(handler, ParsingEvent.END_NODE, node, value, current.parent);
+							if (node == MarkupNode.TYPE) {
+								switch (value) {
+								case "!str":
+									value = String.class.getName();
+									break;
+								case "!bool":
+									value = boolean.class.getName();
+									break;
+								case "!int":
+									value = int.class.getName();
+									break;
+								case "!float":
+									value = float.class.getName();
+									break;
+								case "!seq":
+									value = List.class.getName();
+									break;
+								case "!set":
+									value = Set.class.getName();
+									break;
+								case "!oset":
+									value = LinkedHashSet.class.getName();
+									break;
+								case "!map":
+									value = Map.class.getName();
+									break;
+								case "!omap":
+									value = LinkedHashMap.class.getName();
+									break;
+								case "!binary":
+									value = byte[].class.getName();
+									break;
+								default:
+									current.childrenType = value;
+									break;
+								}
+								previousTypeRaised = true;
+							} else {
+								if (!matcher.group(3).isEmpty()) {
+									autoType(handler, current, matcher.group(3), null);
+								}
+							}
+							fireEvent(handler, ParsingEvent.START_NODE, node, value, current.parent);
+							fireEvent(handler, ParsingEvent.END_NODE, node, value, current.parent);
 							if (matcher.group(3).isEmpty()) {
-								break;
+								continue LINE;
 							}
 							value = matcher.group(3);
-						default:
-							node = MarkupNode.TEXT;
 							break;
+						default:
+							autoType(handler, current, value, String.class.getName());
+							break;
+						}
+						if (value.startsWith("#")) {
+							continue;
+						}
+						fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TEXT, value, current.parent);
+						fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TEXT, value, current.parent);
+						previousValueRaised = true;
 					}
-					this.fireEvent(handler, ParsingEvent.START_NODE, node, value, current.parent);
-					this.fireEvent(handler, ParsingEvent.END_NODE, node, value, current.parent);
+				} catch (Throwable exception) {
+					throw new ParsingException("Error", line, 0, exception);
 				}
 			}
 		} catch (IOException exception) {
 			Logger.log(this, LogLevel.ERROR, exception);
 		}
-		while (current != null) {
-			this.fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TAG, current.name, current.parent);
-			current = current.parent;
-			if (current != null) {
-				this.fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.LIST, null, current);
-			}
-
-		}
-		this.fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.LIST, null, null);
+		closeDocument(handler, current, currentLevel);
 	}
 
-	public static void main(String[] args) throws Exception {
-		final Queue<String> currentTag = Collections.asLifoQueue(new ArrayDeque<String>());
-		YamlParser parser = new YamlParser();
-		parser.parse(new BufferedReader(new FileReader(args[0])), new Handler<ParsingData<MarkupNode>>() {
-			private int level = 0;
+	private void autoType(Handler<ParsingData<MarkupNode>> handler, Tag current, String value, String defaultType) {
+		final String type;
+		switch (value) {
+		case "true":
+		case "false":
+		case "True":
+		case "False":
+		case "TRUE":
+		case "FALSE":
+			type = boolean.class.getName();
+			break;
+		case "":
+			type = Void.class.getName();
+			break;
+		default:
+			type = defaultType;
+		}
+		if (type != null) {
+			fireEvent(handler, ParsingEvent.START_NODE, MarkupNode.TYPE, type, current.parent);
+			fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TYPE, type, current.parent);
+		}
+	}
 
-			@Override
-			public void handleEvent(ParsingData<MarkupNode> data) {
-
-				switch (data.getEvent()) {
-				case START_NODE:
-					switch (data.getNodeType()) {
-					case TEXT:
-						System.out.print(" \"" + data.getValue());
-						break;
-					case ANCHOR:
-						break;
-					case REFERENCE:
-						break;
-					case TYPE:
-						break;
-					case MAP:
-						System.out.println();
-						this.println("{");
-						break;
-					case LIST:
-						System.out.println();
-						this.println("[");
-						break;
-					case TAG:
-						level++;
-						this.print("« " + data.getValue() + ":");
-						currentTag.add(data.getValue());
-						break;
-					case DOCUMENT:
-						break;
-					default:
-						break;
-					}
-					break;
-				case END_NODE:
-					switch (data.getNodeType()) {
-					case TEXT:
-						System.out.println("\"");
-						break;
-					case ANCHOR:
-						break;
-					case REFERENCE:
-						break;
-					case TYPE:
-						break;
-					case MAP:
-						this.println("}");
-						break;
-					case LIST:
-						this.println("]");
-						break;
-					case TAG:
-						this.println(currentTag.poll() + " »");
-						level--;
-						break;
-					case DOCUMENT:
-						break;
-					default:
-						break;
-					}
-					break;
-				}
+	private Tag close(Handler<ParsingData<MarkupNode>> handler, Tag current, int currentLevel, int newLevel) {
+		if (current.name == null && current.parent != null && current.parent.childrenNodeType == MarkupNode.LIST) {
+			currentLevel--;
+		}
+		for (int i = currentLevel; i >= newLevel; i--) {
+			if (current.name != null) {
+				fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.TAG, current.name, current.parent);
 			}
-
-			private void print(String text) {
-				for (int i = 0; i < level; i++) {
-					System.out.print('\t');
-				}
-				System.out.print(text);
+			current = current.parent;
+			if (current == null) {
+				break;
 			}
-
-			private void println(String text) {
-				this.print(text + '\n');
+			if (newLevel != i) {
+				fireEvent(handler, ParsingEvent.END_NODE, current.childrenNodeType, null, current);
 			}
-		});
+		}
+		return current;
+	}
+
+	private void closeDocument(Handler<ParsingData<MarkupNode>> handler, Tag current, int currentLevel) {
+		close(handler, current, currentLevel, -1);
+		fireEvent(handler, ParsingEvent.END_NODE, MarkupNode.DOCUMENT, null, null);
 	}
 }

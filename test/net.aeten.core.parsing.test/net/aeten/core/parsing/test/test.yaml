@@ -1,0 +1,15 @@
+--- !type.document
+tag: value
+list:
+  - !type.list.value # value 1 
+    list value 1 tag 1: value 1 tag 1 value
+    list value 1 tag 2: value 1 tag 2 value
+  - !type.list.value # value 1 
+    list value 1 tag 1: value 1 tag 1 value
+    list value 1 tag 2: value 1 tag 2 value
+  - value 2
+map: !type.map
+  map value 1 tag 1: value 1 tag 1 value
+  map value 1 tag 2: value 1 tag 2 value
+boolean: TRUE
+
