@@ -12,4 +12,12 @@ map: !type.map
   map value 1 tag 1: value 1 tag 1 value
   map value 1 tag 2: value 1 tag 2 value
 boolean: TRUE
-
+inline_map: { 
+  item: value ee,
+  another: foo ii
+}
+inline_seq: [
+  foo,
+  bar
+]
+inline_seq: [foo bar, bar foo]

@@ -16,16 +16,20 @@ import net.aeten.core.parsing.yaml.YamlParser;
 
 public class ParsingTest {
 	public static class Yaml {
-		public static void main(String[] args) throws Exception {
-			ParsingTest.test(new YamlParser(), "test.yaml");
+		public static void main(String[] args)
+				throws Exception {
+			ParsingTest.test (new YamlParser (), "test.yaml");
 		}
 	}
-	
-	public static <T extends Enum<?>> void test(Parser<MarkupNode> parser, String resource) throws FileNotFoundException, ParsingException {
-		resource = ParsingTest.class.getPackage().getName().replace('.', '/') + "/" + resource;
-		String file = ParsingTest.class.getClassLoader().getResource(resource).getFile();
-		final Queue<String> currentTag = Collections.asLifoQueue(new ArrayDeque<String>());
-		parser.parse(new BufferedReader(new FileReader(file)), new Handler<ParsingData<MarkupNode>>() {
+
+	public static <T extends Enum<?>> void test(Parser<MarkupNode> parser,
+			String resource)
+			throws FileNotFoundException,
+				ParsingException {
+		resource = ParsingTest.class.getPackage ().getName ().replace ('.', '/') + "/" + resource;
+		String file = ParsingTest.class.getClassLoader ().getResource (resource).getFile ();
+		final Queue<String> currentTag = Collections.asLifoQueue (new ArrayDeque<String> ());
+		parser.parse (new BufferedReader (new FileReader (file)), new Handler<ParsingData<MarkupNode>> () {
 			private int level = 0;
 			boolean tagKeyAppend = false;
 			boolean parentIsTag = false;
@@ -33,15 +37,15 @@ public class ParsingTest {
 
 			@Override
 			public void handleEvent(ParsingData<MarkupNode> data) {
-
-				switch (data.getEvent()) {
+				switch (data.getEvent ()) {
 				case START_NODE:
-					switch (data.getNodeType()) {
+					switch (data.getNodeType ()) {
 					case TEXT:
-						System.out.print(" \"" + data.getValue());
+						System.out.print (" \"" + data.getValue ());
 						if (parentIsTag && !tagKeyAppend) {
 							tagKeyAppend = true;
-							System.out.print(": ");
+							currentTag.add (data.getValue ());
+							level++;
 						}
 						break;
 					case ANCHOR:
@@ -49,40 +53,43 @@ public class ParsingTest {
 					case REFERENCE:
 						break;
 					case TYPE:
-						this.print("!" + data.getValue());
-						if (parentIsMapOrList) {
-							System.out.println();
+						if (parentIsTag && !tagKeyAppend) {
+							System.out.print ("!" + data.getValue ());
+						} else {
+							this.print ("!" + data.getValue ());
+							if (parentIsMapOrList && !tagKeyAppend) {
+								System.out.println ();
+							}
 						}
 						break;
 					case MAP:
 						parentIsMapOrList = true;
-						System.out.println();
-						this.println("{");
+						System.out.println ();
+						this.println ("{");
 						level++;
 						break;
 					case LIST:
 						parentIsMapOrList = true;
-						System.out.println();
-						this.println("[");
+						System.out.println ();
+						this.println ("[");
 						level++;
 						break;
 					case TAG:
 						tagKeyAppend = false;
 						parentIsTag = true;
-						this.print("« ");
-						currentTag.add(data.getValue());
+						this.print ("« ");
 						break;
 					case DOCUMENT:
-						this.println("---");
+						this.println ("---");
 						break;
 					default:
 						break;
 					}
 					break;
 				case END_NODE:
-					switch (data.getNodeType()) {
+					switch (data.getNodeType ()) {
 					case TEXT:
-						System.out.println("\"");
+						System.out.println ("\"");
 						break;
 					case ANCHOR:
 						break;
@@ -92,28 +99,29 @@ public class ParsingTest {
 						break;
 					case MAP:
 						level--;
-						this.println("}");
+						this.println ("}");
 						parentIsMapOrList = false;
 						if (parentIsTag && !tagKeyAppend) {
 							tagKeyAppend = true;
-							System.out.print(": ");
+							System.out.print (": ");
 						}
 						break;
 					case LIST:
 						level--;
-						this.println("]");
+						this.println ("]");
 						parentIsMapOrList = false;
 						if (parentIsTag && !tagKeyAppend) {
 							tagKeyAppend = true;
-							System.out.print(": ");
+							System.out.print (": ");
 						}
 						break;
 					case TAG:
-						this.println(currentTag.poll() + " »");
+						level--;
+						this.println (currentTag.poll () + " »");
 						parentIsTag = false;
 						break;
 					case DOCUMENT:
-						this.println("...");
+						this.println ("...");
 						break;
 					default:
 						break;
@@ -124,13 +132,13 @@ public class ParsingTest {
 
 			private void print(String text) {
 				for (int i = 0; i < level; i++) {
-					System.out.print('\t');
+					System.out.print ('\t');
 				}
-				System.out.print(text);
+				System.out.print (text);
 			}
 
 			private void println(String text) {
-				this.print(text + '\n');
+				this.print (text + '\n');
 			}
 		});
 	}
