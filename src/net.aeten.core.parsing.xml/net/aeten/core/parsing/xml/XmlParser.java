@@ -14,8 +14,6 @@ import javax.xml.parsers.SAXParserFactory;
 
 import net.aeten.core.Format;
 import net.aeten.core.event.Handler;
-import net.aeten.core.logging.LogLevel;
-import net.aeten.core.logging.Logger;
 import net.aeten.core.parsing.MarkupNode;
 import net.aeten.core.parsing.Parser;
 import net.aeten.core.parsing.ParsingData;
