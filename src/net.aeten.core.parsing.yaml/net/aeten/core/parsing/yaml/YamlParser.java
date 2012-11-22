@@ -13,6 +13,7 @@ import net.aeten.core.Format;
 import net.aeten.core.Predicate;
 import net.aeten.core.event.Handler;
 import net.aeten.core.parsing.AbstractParser;
+import net.aeten.core.parsing.AbstractParser.ParserImplementationHelper;
 import net.aeten.core.parsing.AbstractParser.Tag;
 import net.aeten.core.parsing.MarkupNode;
 import net.aeten.core.parsing.Parser;
@@ -60,12 +61,23 @@ class YamlParserImpl extends
 	protected void parse()
 			throws ParsingException {
 		super.parseText (new Predicate<EntryUnderConstruction> () {
+			Predicate<EntryUnderConstruction> delegate = null;
 			@Override
 			public boolean evaluate(EntryUnderConstruction element) {
+				if (delegate!=null) {
+					if (delegate.evaluate (element)) {
+						delegate = null;
+						return true;
+					}
+					return false;
+				}
 				boolean closure;
 				boolean opening = false;
 				int level;
 				char last = element.getLastChar ();
+				if (last == '#') {
+					delegate = END_OF_LINE;
+				}
 				switch (open) {
 				case '{':
 				case '[':
