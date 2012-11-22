@@ -13,7 +13,6 @@ import net.aeten.core.Format;
 import net.aeten.core.Predicate;
 import net.aeten.core.event.Handler;
 import net.aeten.core.parsing.AbstractParser;
-import net.aeten.core.parsing.AbstractParser.ParserImplementationHelper;
 import net.aeten.core.parsing.AbstractParser.Tag;
 import net.aeten.core.parsing.MarkupNode;
 import net.aeten.core.parsing.Parser;
