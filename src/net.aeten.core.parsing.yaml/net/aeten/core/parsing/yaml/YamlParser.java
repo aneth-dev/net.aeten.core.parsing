@@ -25,14 +25,13 @@ import net.aeten.core.spi.Provider;
  * 
  * @author Thomas Pérennou
  */
-@Provider(Parser.class)
-@Format("yaml")
+@Provider (Parser.class)
+@Format ("yaml")
 public class YamlParser extends
-		AbstractParser<MarkupNode> {
+		AbstractParser <MarkupNode> {
 	@Override
-	public void parse(Reader reader,
-			Handler<ParsingData<MarkupNode>> handler)
-			throws ParsingException {
+	public void parse (	Reader reader,
+								Handler <ParsingData <MarkupNode>> handler) throws ParsingException {
 		new YamlParserImpl (this, reader, handler).parse ();
 	}
 }
@@ -44,12 +43,12 @@ class YamlParserImpl extends
 
 	String indentation = null;
 	int currentLevel = -1, previousLevel = -1;
-	Tag<MarkupNode> current = null;
+	Tag <MarkupNode> current = null;
 	boolean documentOpened = false, previousValueRaised = false, previousTypeRaised = false;
 
-	protected YamlParserImpl(Parser<MarkupNode> parser,
-			Reader reader,
-			Handler<ParsingData<MarkupNode>> handler) {
+	protected YamlParserImpl (	Parser <MarkupNode> parser,
+										Reader reader,
+										Handler <ParsingData <MarkupNode>> handler) {
 		super (parser, reader, handler, true);
 	}
 
@@ -57,13 +56,13 @@ class YamlParserImpl extends
 	boolean indented = false;
 	boolean coma = false;
 
-	protected void parse()
-			throws ParsingException {
-		super.parseText (new Predicate<EntryUnderConstruction> () {
-			Predicate<EntryUnderConstruction> delegate = null;
+	protected void parse () throws ParsingException {
+		super.parseText (new Predicate <EntryUnderConstruction> () {
+			Predicate <EntryUnderConstruction> delegate = null;
+
 			@Override
-			public boolean evaluate(EntryUnderConstruction element) {
-				if (delegate!=null) {
+			public boolean evaluate (EntryUnderConstruction element) {
+				if (delegate != null) {
 					if (delegate.evaluate (element)) {
 						delegate = null;
 						return true;
@@ -93,7 +92,7 @@ class YamlParserImpl extends
 				}
 				if (coma) {
 					coma = false;
-					level = open == '[' ? currentLevel - 1 : currentLevel;
+					level = open == '['? currentLevel - 1: currentLevel;
 				} else {
 					level = currentLevel + 1;
 				}
@@ -162,8 +161,7 @@ class YamlParserImpl extends
 		closeDocument (handler, current, currentLevel);
 	}
 
-	protected void parse(String line)
-			throws ParsingException {
+	protected void parse (String line) throws ParsingException {
 		String trimed = line.trim ();
 		if ("".equals (trimed) || trimed.startsWith ("#")) {
 			return;
@@ -237,7 +235,7 @@ class YamlParserImpl extends
 		if (currentLevel > previousLevel) {
 			if (enclosingType != null) {
 				if (current == null) {
-					current = new Tag<MarkupNode> (null, null);
+					current = new Tag <MarkupNode> (null, null);
 				}
 				if (current.childrenNodeType == null) {
 					current.childrenNodeType = enclosingType;
@@ -245,7 +243,7 @@ class YamlParserImpl extends
 					error ("Find " + enclosingType + " element when " + current.childrenNodeType + " was expected");
 				}
 				if (current.childrenType == null) {
-					current.childrenType = (current.childrenNodeType == MarkupNode.MAP ? Map.class : List.class).getName ();
+					current.childrenType = (current.childrenNodeType == MarkupNode.MAP? Map.class: List.class).getName ();
 					type (current.childrenType, current.parent);
 				}
 				fireEvent (ParsingEvent.START_NODE, current.childrenNodeType, null, current);
@@ -361,9 +359,9 @@ class YamlParserImpl extends
 		}
 	}
 
-	private Tag<MarkupNode> openTag(String name,
-			Tag<MarkupNode> parent) {
-		Tag<MarkupNode> tag = new Tag<MarkupNode> (parent, name);
+	private Tag <MarkupNode> openTag (	String name,
+													Tag <MarkupNode> parent) {
+		Tag <MarkupNode> tag = new Tag <MarkupNode> (parent, name);
 		if (name != null) {
 			fireEvent (ParsingEvent.START_NODE, MarkupNode.TAG, null, tag.parent);
 			fireEvent (ParsingEvent.START_NODE, MarkupNode.TYPE, String.class.getName (), tag);
@@ -374,17 +372,17 @@ class YamlParserImpl extends
 		return tag;
 	}
 
-	private Tag<MarkupNode> closeTag(Tag<MarkupNode> tag) {
+	private Tag <MarkupNode> closeTag (Tag <MarkupNode> tag) {
 		if (tag != null && tag.name != null) {
 			fireEvent (ParsingEvent.END_NODE, MarkupNode.TAG, null, tag.parent);
 		}
-		return tag == null ? null : tag.parent;
+		return tag == null? null: tag.parent;
 	}
 
-	private void autoType(Handler<ParsingData<MarkupNode>> handler,
-			Tag<MarkupNode> current,
-			String value,
-			String defaultType) {
+	private void autoType (	Handler <ParsingData <MarkupNode>> handler,
+									Tag <MarkupNode> current,
+									String value,
+									String defaultType) {
 		final String type;
 		switch (value) {
 		case "true":
@@ -407,10 +405,10 @@ class YamlParserImpl extends
 		}
 	}
 
-	private Tag<MarkupNode> close(Handler<ParsingData<MarkupNode>> handler,
-			Tag<MarkupNode> current,
-			int currentLevel,
-			int newLevel) {
+	private Tag <MarkupNode> close (	Handler <ParsingData <MarkupNode>> handler,
+												Tag <MarkupNode> current,
+												int currentLevel,
+												int newLevel) {
 		if (current.name == null && current.parent != null && current.parent.childrenNodeType == MarkupNode.LIST) {
 			currentLevel--;
 		}
@@ -429,9 +427,9 @@ class YamlParserImpl extends
 		return current;
 	}
 
-	private void closeDocument(Handler<ParsingData<MarkupNode>> handler,
-			Tag<MarkupNode> current,
-			int currentLevel) {
+	private void closeDocument (	Handler <ParsingData <MarkupNode>> handler,
+											Tag <MarkupNode> current,
+											int currentLevel) {
 		close (handler, current, currentLevel, -1);
 
 		fireEvent (ParsingEvent.END_NODE, MarkupNode.DOCUMENT, null, null);
