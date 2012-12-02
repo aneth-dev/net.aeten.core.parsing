@@ -7,8 +7,8 @@ import java.io.Reader;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Queue;
-import javax.xml.parsers.ParserConfigurationException;
 
+import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 
