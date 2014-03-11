@@ -2,7 +2,8 @@ package net.aeten.core.parsing.test;
 
 import java.io.BufferedReader;
 import java.io.FileNotFoundException;
-import java.io.FileReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.ArrayDeque;
 import java.util.Collections;
 import java.util.Queue;
@@ -27,13 +28,14 @@ public class ParsingTest {
 			throws FileNotFoundException,
 				ParsingException {
 		resource = ParsingTest.class.getPackage ().getName ().replace ('.', '/') + "/" + resource;
-		String file = ParsingTest.class.getClassLoader ().getResource (resource).getFile ();
+		InputStream file = ParsingTest.class.getClassLoader ().getResourceAsStream (resource);
 		final Queue<String> currentTag = Collections.asLifoQueue (new ArrayDeque<String> ());
-		parser.parse (new BufferedReader (new FileReader (file)), new Handler<ParsingData<MarkupNode>> () {
+		parser.parse (new BufferedReader (new InputStreamReader (file)), new Handler<ParsingData<MarkupNode>> () {
 			private int level = 0;
-			boolean tagKeyAppend = false;
-			boolean parentIsTag = false;
-			boolean parentIsMapOrList = false;
+			private boolean tagKeyAppend = false;
+			private boolean parentIsTag = false;
+			private boolean parentIsMapOrList = false;
+			private long start, end;
 
 			@Override
 			public void handleEvent(ParsingData<MarkupNode> data) {
@@ -81,6 +83,7 @@ public class ParsingTest {
 						break;
 					case DOCUMENT:
 						this.println ("---");
+						start = System.currentTimeMillis();
 						break;
 					default:
 						break;
@@ -121,7 +124,9 @@ public class ParsingTest {
 						parentIsTag = false;
 						break;
 					case DOCUMENT:
+						end = System.currentTimeMillis();
 						this.println ("...");
+						this.println ((end-start) + " ms");
 						break;
 					default:
 						break;
@@ -142,5 +147,4 @@ public class ParsingTest {
 			}
 		});
 	}
-
 }
