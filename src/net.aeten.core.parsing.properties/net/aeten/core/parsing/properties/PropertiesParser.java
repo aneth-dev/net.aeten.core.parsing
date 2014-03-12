@@ -73,7 +73,7 @@ public class PropertiesParser implements
 				begin++;
 				for (int keyIndex = begin; keyIndex < path.length; previousLevel = keyIndex++) {
 					currentLevel = keyIndex;
-					if ( (path.length > currentLevel + 1) && path[currentLevel + 1].matches ("^\\d$")) {
+					if ((path.length > currentLevel + 1) && path[currentLevel + 1].matches ("^\\d$")) {
 						continue;
 					}
 					String key = path[path[keyIndex].matches ("^\\d$")? keyIndex - 1: keyIndex];
@@ -100,13 +100,13 @@ public class PropertiesParser implements
 								}
 								parent = parent.parent;
 							}
-							current = new Tag ( (current == null)? null: parent, key);
+							current = new Tag ((current == null)? null: parent, key);
 							fireEvent (handler, ParsingEvent.START_NODE, MarkupNode.TAG, current.name, current.parent);
 						} else {
 							if (current != null) {
 								fireEvent (handler, ParsingEvent.END_NODE, MarkupNode.TAG, current.name, current.parent);
 							}
-							current = new Tag ( (current == null)? null: current.parent, key);
+							current = new Tag ((current == null)? null: current.parent, key);
 							fireEvent (handler, ParsingEvent.START_NODE, MarkupNode.TAG, current.name, current.parent);
 						}
 						if (!"".equals (value)) {
