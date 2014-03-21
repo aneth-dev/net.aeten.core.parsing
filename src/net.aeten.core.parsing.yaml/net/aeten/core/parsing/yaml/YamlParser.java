@@ -10,7 +10,7 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 import net.aeten.core.Format;
-import net.aeten.core.Predicate;
+import java.util.function.Predicate;
 import net.aeten.core.event.Handler;
 import net.aeten.core.parsing.AbstractParser;
 import net.aeten.core.parsing.AbstractParser.Tag;
@@ -56,9 +56,9 @@ class YamlParserImpl extends AbstractParser.ParserImplementationHelper {
 			Predicate<EntryUnderConstruction> delegate = null;
 
 			@Override
-			public boolean evaluate(EntryUnderConstruction element) {
+			public boolean test(EntryUnderConstruction element) {
 				if (delegate != null) {
-					if (delegate.evaluate(element)) {
+					if (delegate.test(element)) {
 						delegate = null;
 						return true;
 					}
@@ -150,7 +150,7 @@ class YamlParserImpl extends AbstractParser.ParserImplementationHelper {
 					indented = false;
 					return true;
 				}
-				return END_OF_LINE.evaluate(element);
+				return END_OF_LINE.test(element);
 			}
 		});
 		closeDocument(handler, current, currentLevel);
