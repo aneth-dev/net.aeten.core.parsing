@@ -1,0 +1,15 @@
+[submodule "Java-make"]
+	path = Java-make
+	url = git@github.com:aeten/Java-make.git
+[submodule "aeten-code-format"]
+	path = aeten-code-format
+	url = git@github.com:aeten/aeten-code-format.git
+[submodule "cots/net.aeten.core"]
+	path = cots/net.aeten.core
+	url = git@github.com:aeten/net.aeten.core.git
+[submodule "cots/net.jcip.annotations"]
+	path = cots/net.jcip.annotations
+	url = git@github.com:aeten/net.jcip.annotations.git
+[submodule "cots/slf4j"]
+	path = cots/slf4j
+	url = git@github.com:aeten/slf4j.git
